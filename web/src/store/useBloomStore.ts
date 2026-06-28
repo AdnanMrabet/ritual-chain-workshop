@@ -10,7 +10,7 @@ import type {
   UserRole,
 } from "@/types";
 import { web3BountyService as bountyService } from "@/services/web3BountyService";
-import { STAGES } from "@/lib/stages";
+import { STAGES, livePhase, autoStageFor } from "@/lib/stages";
 
 const RITUAL_CHAIN_ID = 1979;
 
@@ -60,6 +60,13 @@ interface BloomState {
   judgeAll: () => Promise<void>;
   selectWinner: (index: number) => void;
   finalizeWinner: (index: number) => Promise<void>;
+
+  /** Called on an interval: detects phase boundary crossings and auto-advances
+      the active stage, refreshing on-chain data when a boundary is crossed. */
+  tick: () => void;
+  lastPhase: Bounty["phase"] | null;
+  autoFollow: boolean;
+  setAutoFollow: (v: boolean) => void;
 }
 
 const stageIndex = (id: StageId) => STAGES.findIndex((s) => s.id === id);
@@ -88,6 +95,10 @@ export const useBloomStore = create<BloomState>((set, get) => ({
   busy: false,
   error: null,
   timeline: [],
+  lastPhase: null,
+  autoFollow: true,
+
+  setAutoFollow: (v) => set({ autoFollow: v }),
 
   setStage: (id) => set({ activeStage: id }),
 
@@ -262,6 +273,36 @@ export const useBloomStore = create<BloomState>((set, get) => ({
       set({ error: (e as Error).message });
     } finally {
       set({ busy: false });
+    }
+  },
+
+  tick: () => {
+    const { bounty, lastPhase, autoFollow, busy, activeStage } = get();
+    if (!bounty) return;
+
+    const phase = livePhase(bounty, Date.now());
+
+    // Phase boundary crossed (e.g. commit→reveal, reveal→judging by time).
+    if (phase !== lastPhase) {
+      set({ lastPhase: phase });
+
+      // Re-sync on-chain data on a boundary so submissions/flags are fresh.
+      if (lastPhase !== null && !busy) {
+        void get().refreshBounty();
+      }
+
+      // Auto-advance the active stage to the new phase's stage, unless the user
+      // is mid-action (busy) or has wandered into Status/Submissions on purpose.
+      if (lastPhase !== null && autoFollow && !busy) {
+        const target = autoStageFor(bounty, get().role);
+        const stay = activeStage === "status" || activeStage === "submissions";
+        if (target && target !== activeStage && !stay) {
+          const idx = stageIndex(target);
+          if (idx >= 0) get().unlockUpTo(idx);
+          get().setStage(target);
+          get().pushEvent("created", "Phase advanced", `now in ${phase}`);
+        }
+      }
     }
   },
 }));

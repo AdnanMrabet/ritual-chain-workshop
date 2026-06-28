@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 import {
   Plug,
   Sprout,
@@ -16,7 +17,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useBloomStore } from "@/store/useBloomStore";
-import { STAGES } from "@/lib/stages";
+import { STAGES, availableStages } from "@/lib/stages";
 import type { StageId, StageStatus } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -42,12 +43,23 @@ const STATUS_COLOR: Record<StageStatus, string> = {
 };
 
 export function StageCardRibbon() {
-  const { activeStage, furthestStage, setStage } = useBloomStore();
+  const { activeStage, setStage, bounty, role } = useBloomStore();
+  const [now, setNow] = useState(() => Date.now());
 
-  function statusOf(index: number): StageStatus {
-    const activeIndex = STAGES.findIndex((s) => s.id === activeStage);
-    if (index === activeIndex) return "active";
-    if (index < activeIndex || index <= furthestStage) return "done";
+  // re-evaluate availability every second so stages unlock as time elapses
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const open = availableStages(bounty, role, now);
+  const activeIndex = STAGES.findIndex((s) => s.id === activeStage);
+
+  function statusOf(stage: (typeof STAGES)[number], index: number): StageStatus {
+    if (stage.id === activeStage) return "active";
+    // a reachable, already-passed stage shows as done
+    if (open.has(stage.id) && index < activeIndex) return "done";
+    if (open.has(stage.id)) return "done";
     return "locked";
   }
 
@@ -55,10 +67,10 @@ export function StageCardRibbon() {
     <div className="glass mx-auto w-full max-w-[1640px] rounded-3xl p-2.5">
       <div className="flex gap-2.5 overflow-x-auto pb-1 thin-scroll">
         {STAGES.map((stage, i) => {
-          const status = statusOf(i);
+          const status = statusOf(stage, i);
           const Icon = ICONS[stage.id];
           const color = STATUS_COLOR[status];
-          const locked = status === "locked" && i > furthestStage;
+          const locked = status === "locked";
           const isActive = status === "active";
 
           return (

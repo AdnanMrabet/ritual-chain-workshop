@@ -1,8 +1,10 @@
+import { useEffect, useState } from "react";
 import { useBloomStore } from "@/store/useBloomStore";
 import { StageScaffold } from "./StageScaffold";
 import { TimeDropCountdown } from "@/components/visual/TimeDropCountdown";
 import { Badge } from "@/components/ui/Badge";
 import { shortAddress, formatReward } from "@/lib/utils";
+import { livePhase } from "@/lib/stages";
 import type { BountyPhase } from "@/types";
 
 const PHASE_META: Record<BountyPhase, { label: string; color: string; copy: string }> = {
@@ -25,9 +27,14 @@ function Stat({ label, value, color = "var(--color-mist)" }: { label: string; va
 /** Stage 2 — Growth State. Current phase + the two draining time drops. */
 export function StatusStage() {
   const { bounty, submissions } = useBloomStore();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
   if (!bounty) return null;
 
-  const meta = PHASE_META[bounty.phase];
+  const meta = PHASE_META[livePhase(bounty, now)];
   const revealed = submissions.filter((s) => s.eligible).length;
 
   return (

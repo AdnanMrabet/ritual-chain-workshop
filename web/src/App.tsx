@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ToasterProvider } from "@/components/ui/Toaster";
 import { FloatingGardenHeader } from "@/components/layout/FloatingGardenHeader";
 import { StageCardRibbon } from "@/components/layout/StageCardRibbon";
@@ -7,10 +7,22 @@ import { RightActionGreenhouse } from "@/components/layout/RightActionGreenhouse
 import { BottomGrowthTimeline } from "@/components/layout/BottomGrowthTimeline";
 import { SubmissionsGardenDrawer } from "@/components/layout/SubmissionsGardenDrawer";
 import { HelpModal } from "@/components/modals/HelpModal";
+import { PhaseCountdownBar } from "@/components/layout/PhaseCountdownBar";
+import { useBloomStore } from "@/store/useBloomStore";
 
 function Shell() {
   const [help, setHelp] = useState(false);
   const [drawer, setDrawer] = useState(false);
+  const tick = useBloomStore((s) => s.tick);
+  const bounty = useBloomStore((s) => s.bounty);
+
+  // Drive phase boundaries + auto-transition. 1s cadence is plenty given
+  // Ritual's ~0.2s blocks and our ms deadlines.
+  useEffect(() => {
+    if (!bounty) return;
+    const id = setInterval(() => tick(), 1000);
+    return () => clearInterval(id);
+  }, [bounty, tick]);
 
   return (
     <div className="relative z-[1] flex min-h-screen flex-col">
@@ -23,6 +35,10 @@ function Shell() {
 
       <div className="mx-auto w-full max-w-[1640px] px-3 pt-3 sm:px-4">
         <StageCardRibbon />
+      </div>
+
+      <div className="mx-auto w-full max-w-[1640px] px-3 pt-3 sm:px-4">
+        <PhaseCountdownBar />
       </div>
 
       <main className="mx-auto grid w-full max-w-[1640px] flex-1 grid-cols-1 gap-3 px-3 py-3 sm:px-4 lg:grid-cols-[minmax(0,1fr)_360px]">
