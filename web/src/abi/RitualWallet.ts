@@ -1,12 +1,12 @@
 import type { Address } from "viem";
 
 /**
- * Ritual's prepaid-fee escrow. The LLM async precompile (`0x…0802`) charges the
- * caller's RitualWallet balance, and requires the funds to stay *locked* for
- * long enough to cover the async TEE callback. Without enough balance + lock
- * duration, `judgeAll` reverts with errors like "insufficient lock duration".
+ * Ritual's prepaid-fee escrow. The LLM async precompile (0x…0802) charges the
+ * caller's RitualWallet balance and requires the funds to stay locked long
+ * enough to cover the async TEE callback. Without enough balance + lock
+ * duration, judgeAll reverts (e.g. "insufficient lock duration").
  *
- * This is a fixed protocol contract, so the address is hard-coded (not env).
+ * Fixed protocol contract — address is hard-coded.
  */
 export const RITUAL_WALLET: Address = "0x532F0dF0896F353d8C3DD8cc134e8129DA2a3948";
 

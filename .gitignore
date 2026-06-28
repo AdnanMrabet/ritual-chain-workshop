@@ -1,0 +1,10 @@
+# secrets — never commit
+.env
+.env.*
+!.env.example
+
+# misc
+.DS_Store
+*.log
+_fork_README.md
+_verify_commit.mjs

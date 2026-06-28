@@ -1,119 +1,96 @@
-# AI Bounty Judge
+# Cipher Bloom
 
-A workshop-demo frontend for the **Ritual Chain** `SimpleAIBountyJudge` contract.
+**Privacy-Preserving AI Bounty Judge for Ritual L1.**
 
-> Submit answers to a bounty. After the deadline, Ritual AI ranks all
-> submissions. The bounty owner finalizes the winner.
+A premium Web3 dApp frontend built as a *private cryptographic garden*. Answers
+are planted as **sealed seeds** (only a commitment hash is published), revealed
+as **verified blooms** after the deadline, judged by the Ritual AI in **one
+batch**, and **harvested** by a human owner who releases the reward nectar.
 
-Built with **Next.js (App Router) · TypeScript · Tailwind CSS · wagmi · viem**.
+> The full journey: private idea → sealed seed → verified bloom → batch AI
+> review → human harvest → reward paid.
+>
+> **AI recommends. Human decides.**
 
----
+## Tech stack
 
-## Product flow
+- **React + Vite + TypeScript** — app foundation
+- **Tailwind CSS v4** — the entire bioluminescent-greenhouse design system
+- **Radix UI** — accessible Dialog / Drawer primitives, heavily restyled
+- **Motion (Framer Motion)** — page/stage transitions, micro-interactions
+- **GSAP** — available for the heavier cinematic sequences
+- **Zustand** — app state (stage, role, bounty, submissions, verdict, demo)
+- **viem** — commit-reveal hashing today; Web3-ready service layer for later
+- **lucide-react** — icons
 
-1. A bounty owner **creates a bounty** with a title, rubric, deadline, and reward.
-2. Participants **submit answers** before the deadline.
-3. After the deadline, the owner clicks **Judge All Submissions**.
-4. The frontend gathers all submissions, builds one Ritual LLM request, encodes
-   it as `llmInput`, and calls `judgeAll(bountyId, llmInput)`.
-5. The contract stores/emits the **AI review**.
-6. The owner reads the AI review and clicks **Finalize Winner** with the chosen
-   `winnerIndex`.
-7. The contract pays the winner.
+## The 10 stages
 
-> AI review is advisory. The bounty owner finalizes the winner. All submissions
-> are judged together after the deadline. Only one winner receives the reward.
+| # | Stage | Scene | What happens |
+|---|-------|-------|--------------|
+| 0 | Connect | Wake the Garden | Connect wallet to Ritual |
+| 1 | Create | Plant the Bounty | Owner sets rubric, deadlines, locks reward |
+| 2 | Status | Growth State | Phase + two draining time drops |
+| 3 | Commit | Seal the Seed | Submit only the commitment hash |
+| 4 | Reveal | Open the Sprout | Reveal answer + salt; hash roots compared |
+| 5 | Fund AI | Feed the Oracle | Owner deposits inference nectar |
+| 6 | Judge | Bloom Review | Ritual AI judges all blooms in one batch |
+| 7 | Verdict | Oracle's Recommendation | Ranked blooms; AI pick glows |
+| 8 | Finalize | Harvest the Winner | Human confirms/overrides, pays reward |
+| 9 | Submissions | Submission Garden | Every seed, sprout and bloom |
 
----
+## Layout skeleton
 
-## Configure
-
-Copy the example env file and fill in your deployment:
-
-```bash
-cp .env.example .env.local
+```
+┌──────────────── Floating Garden Header ────────────────┐
+│ Stage Card Ribbon (0…9)                                 │
+│ ┌───────────────── Main Bloom Stage ──┬ Right Action ─┐ │
+│ │  the active scene                    │  Greenhouse   │ │
+│ └──────────────────────────────────────┴───────────────┘ │
+│ Bottom Growth Timeline (growing branch of leaf events)  │
+└──────────────────────────────────────────────────────────┘
+        + Submissions Garden Drawer (slides from right)
 ```
 
-| Variable | Purpose |
-| --- | --- |
-| `NEXT_PUBLIC_CONTRACT_ADDRESS` | Deployed `SimpleAIBountyJudge` address. The UI shows a banner until this is set. |
-| `NEXT_PUBLIC_RITUAL_RPC_URL` | Ritual Chain JSON-RPC endpoint. |
-| `NEXT_PUBLIC_RITUAL_CHAIN_ID` | Numeric chain id (default `1979`). |
-| `NEXT_PUBLIC_RITUAL_EXECUTOR_ADDRESS` | LLM executor / precompile-callback address used when encoding `judgeAll` input. Defaults to the LLM precompile `0x…0802`. |
-| `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | *(optional)* Enables the WalletConnect connector. Injected/MetaMask work without it. |
+## Background
 
-All values are read in `src/config/contract.ts` and `src/config/wagmi.ts`.
+The host page background is **never replaced**. The app paints glass, blur,
+depth and a faint bioluminescent veil *on top* via `.cb-atmosphere`, which is
+`pointer-events: none` and keeps text readable.
 
----
-
-## Run
+## Getting started
 
 ```bash
-pnpm install      # or npm install
-pnpm dev          # http://localhost:3000
+npm install
+npm run dev      # http://localhost:5173
+npm run build
 ```
 
-Build / start:
+## Web3 architecture
 
-```bash
-pnpm build
-pnpm start
-```
+The UI talks to a single service interface (`BountyService`). The on-chain
+implementation lives in `src/services/web3BountyService.ts`, with `TODO`s where
+each viem/wagmi call against the deployed contract goes.
 
----
+Ritual specifics baked into the scaffold:
+- `block.timestamp` is in **milliseconds** — all deadlines stay in ms.
+- `judgeAll` must **pin `gas: 6_000_000n`** (async LLM replay ~1.09M gas).
+- AI judge escrow ≈ 0.31 RITUAL per batch; deposit ≈ 0.4.
+- Commitment = `keccak256(abi.encode(answer, salt, sender, bountyId))`.
 
-## How it's wired
+## Project structure
 
 ```
 src/
-  abi/AIJudge.ts            Contract ABI (provided)
-  config/
-    contract.ts            Address + executor + chain id from env vars
-    wagmi.ts               Custom Ritual Chain + wagmi config
-  app/
-    providers.tsx          'use client' wagmi + React Query provider tree
-    layout.tsx             Server layout (fonts, metadata) -> Providers
-    page.tsx               Dashboard: create, load-by-id, recent list, bounty view
+  components/
+    layout/    Header, Ribbon, MainStage, RightGreenhouse, Timeline, Drawer
+    stages/    one scene per stage (0–9)
+    visual/    garden glyphs, time drop, hash tag, submission card
+    modals/    SafetyConfirmModal, HelpModal
+    ui/        Button, Field, Badge, Toaster (restyled Radix)
   hooks/
-    useBounty.ts           Reads + parses getBounty (polls so status updates)
-    useWriteTx.ts          idle -> wallet -> pending -> confirmed | failed tx state
-    useRecentBounties.ts   localStorage list of created/opened bounty ids
-  lib/
-    ritualLlm.ts           buildJudgeAllLlmInput() — Ritual LLM request encoder
-    aiReview.ts            Decode aiReview bytes + parse judge JSON
-    bounty.ts              Bounty type, status logic, submission gating
-    format.ts              Address/amount/timestamp formatting helpers
-  components/               UI primitives + each feature card
+  store/       useBloomStore (Zustand)
+  services/    web3BountyService (Ritual contract) + shared interface
+  lib/         crypto, utils, stages, revealKit
+  types/
+  styles/      globals.css (design system)
 ```
-
-### The Ritual LLM encoder (`src/lib/ritualLlm.ts`)
-
-`buildJudgeAllLlmInput({ executorAddress, title, rubric, submissions })` builds
-the batch-judging prompt (using the workshop's exact template, low temperature
-for stable judging) and ABI-encodes it with viem's `encodeAbiParameters` into
-the `bytes` passed to `judgeAll`.
-
-> ⚠️ **The exact Ritual LLM precompile ABI is not yet publicly pinned down.**
-> The encoder uses a clearly-documented *best-effort* tuple layout and is kept
-> isolated so only this file needs to change when the real ABI is published.
-> Flip the `ENCODING` constant to `"json"` for a mocked UTF-8 JSON payload that
-> lets the full create -> submit -> judge -> finalize flow run end-to-end against
-> a contract that simply stores/echoes the bytes.
-
-### AI review display
-
-After `judgeAll`, the UI reads `aiReview` from `getBounty`, decodes the bytes to
-text, and tries to parse the judge JSON (`winnerIndex`, `ranking`, `summary`).
-It renders the recommended winner, a ranking table with scores and reasons, and
-the summary. If parsing fails, it shows the raw response in a code block. The
-finalize input is prefilled with the AI's recommended `winnerIndex`.
-
----
-
-## Notes for the workshop
-
-- Transaction buttons show clear states and disable while pending.
-- Owner-only actions (Judge / Finalize) only appear for the connected owner.
-- The "recent bounties" list is kept in `localStorage` (no indexer required).
-- Multicall is **not** assumed — submissions are read one-by-one, so it works on
-  a fresh chain without a deployed multicall contract.
