@@ -36,6 +36,30 @@ gets the last word. **The AI recommends. The human decides.**
 
 ---
 
+## How this answers the assignment
+
+The workshop brief named a concrete flaw: the original judge made answers public
+the instant they were submitted, so a latecomer could read the best idea and
+re-submit a tweaked copy. Here is how Cipher Bloom fixes it and where each
+required deliverable lives.
+
+| Asked for | How it's solved in Cipher Bloom |
+|-----------|----------------------------------|
+| Hide answers until judging | During planting only the **shell** `keccak256(abi.encode(answer, salt, sender, bountyId))` is on-chain; `getSubmission` returns an empty answer until a verified reveal. |
+| Commit-reveal flow in Solidity | `submitCommitment` → `revealAnswer` → `judgeAll` → `finalizeWinner` in [`CipherBloomJudge.sol`](hardhat/contracts/CipherBloomJudge.sol), the four required signatures, plus `createBounty` and the `reclaimReward` escape hatch. |
+| Verify the commitment binds answer+salt+sender+bountyId | `revealAnswer` recomputes the shell and reverts `ShellMismatch` unless it matches; `sender` blocks reveal-theft, `bountyId` blocks replay. |
+| Only valid reveals are eligible | unopened seeds can't be judged or finalized; `finalizeWinner` reverts `WinnerNotRevealed` on an unopened pick. |
+| Batch AI judging (not one call per answer) | `judgeAll` sends every bloom in **one** request to the Ritual LLM precompile `0x0802` (GLM-4.7-FP8); the verdict is stored as `aiVerdict`. |
+| AI recommends, human decides | `judgeAll` only writes bytes; `finalizeWinner` is owner-only and moves the reward. |
+| Works on any EVM chain | off Ritual, pass empty `llmInput`; the lifecycle still completes (the 32 tests run this way). |
+
+**Deliverables:** this README (lifecycle) · test plan in
+[`docs/TEST_PLAN.md`](docs/TEST_PLAN.md) · architecture note in
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · reflection in
+[`docs/REFLECTION.md`](docs/REFLECTION.md).
+
+---
+
 ## Why a garden, and why it has to be sealed
 
 Picture an open bounty where answers are public the second they land. The first
